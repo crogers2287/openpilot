@@ -178,6 +178,15 @@ class DriverMonitoring:
     # BluePilot: cherry-picked from dragonpilot - calibrated phone prob detection
     self.phone_prob_calibrated = False
     self.phone_offsetter = RunningStatFilter(max_trackable=self.settings._POSE_OFFSET_MAX_COUNT)
+    # BlueDragon: user-tunable DM options (read once at start; apply on next drive/reboot)
+    # Low-speed relaxation extended to the engaged case (stock exemption is disengaged-only)
+    self.bd_lowspeed_relax = self.params.get_bool("BPDmLowSpeedRelax")
+    # Sensitivity preset scales pose distraction thresholds: 0=Relaxed, 1=Standard, 2=Strict
+    try:
+      _bd_sens = int(self.params.get("BPDmSensitivity", return_default=True))
+    except (TypeError, ValueError):
+      _bd_sens = 1
+    self.bd_dm_factor = {0: 1.15, 1: 1.0, 2: 0.9}.get(_bd_sens, 1.0)
 
     self._reset_awareness()
     self._set_timers(active_monitoring=True)
@@ -248,6 +257,9 @@ class DriverMonitoring:
 
     pitch_threshold = self.settings._POSE_PITCH_THRESHOLD * self.pose.cfactor_pitch if self.pose.calibrated else self.settings._PITCH_NATURAL_THRESHOLD
     yaw_threshold = self.settings._POSE_YAW_THRESHOLD * self.pose.cfactor_yaw
+    # BlueDragon: sensitivity preset scales pose distraction thresholds (higher factor = less sensitive)
+    pitch_threshold *= self.bd_dm_factor
+    yaw_threshold *= self.bd_dm_factor
 
     if pitch_error > pitch_threshold or yaw_error > yaw_threshold:
       distracted_types.append(DistractedType.DISTRACTED_POSE)
@@ -379,7 +391,9 @@ class DriverMonitoring:
     _reaching_terminal = self.awareness - self.step_change <= 0
     standstill_orange_exemption = standstill and _reaching_audible
     always_on_red_exemption = always_on_valid and not op_engaged and _reaching_terminal
-    always_on_lowspeed_exemption = always_on_valid and not op_engaged and car_speed < self.settings._ALWAYS_ON_ALERT_MIN_SPEED
+    # BlueDragon: stock exemption is disengaged-only; BPDmLowSpeedRelax extends it to the engaged case
+    _bd_lowspeed = car_speed < self.settings._ALWAYS_ON_ALERT_MIN_SPEED
+    always_on_lowspeed_exemption = _bd_lowspeed and ((always_on_valid and not op_engaged) or self.bd_lowspeed_relax)
 
     certainly_distracted = self.driver_distraction_filter.x > 0.63 and self.driver_distracted and self.face_detected
     maybe_distracted = self.hi_stds > self.settings._HI_STD_FALLBACK_TIME or not self.face_detected

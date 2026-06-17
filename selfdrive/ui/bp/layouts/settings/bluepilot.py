@@ -73,6 +73,7 @@ class BluePilotLayout(Widget):
       ("disable_BP_long_UI", self._disable_BP_long),
       ("disable_downhill_comp_UI", self._disable_dowhill_comp),
       ("BPUIDebugLog", self._ui_debug_log),
+      ("BPDmLowSpeedRelax", self._dm_lowspeed_relax),
     )
 
     ui_state.add_offroad_transition_callback(self._update_toggles)
@@ -397,6 +398,34 @@ class BluePilotLayout(Widget):
       callback=self._clear_model_cache
     )
 
+    # BlueDragon: Driver Monitoring — low-speed relaxation (incl. engaged) + sensitivity preset
+    self._dm_lowspeed_relax = toggle_item(
+      lambda: tr("Relax Driver Monitoring at Low Speed"),
+      lambda: tr("Stop driver monitoring nags below ~25 mph, including while engaged (e.g. stop-and-go). Takes effect on next drive."),
+      initial_state=self._safe_get_bool(self._params, "BPDmLowSpeedRelax"),
+      callback=lambda state: self._toggle_callback(state, "BPDmLowSpeedRelax"),
+      icon="monitoring.png"
+    )
+
+    try:
+      dm_sens_idx = int(self._safe_get(self._params, "BPDmSensitivity") or 1)
+    except (TypeError, ValueError):
+      dm_sens_idx = 1
+    try:
+      if self._safe_get(self._params, "BPDmSensitivity") is None:
+        self._params.put("BPDmSensitivity", str(dm_sens_idx))
+    except UnknownKeyName:
+      pass
+    self._dm_sensitivity_btn = multiple_button_item(
+      lambda: tr("Driver Monitoring Sensitivity"),
+      lambda: tr("How readily distraction is flagged. Relaxed = fewer nags, Strict = stock. Takes effect on next drive."),
+      buttons=[lambda: tr("Relaxed"), lambda: tr("Standard"), lambda: tr("Strict")],
+      button_width=225,
+      callback=self._set_dm_sensitivity,
+      selected_index=dm_sens_idx,
+      icon="monitoring.png"
+    )
+
     # Build menu with sections per TICI_MENU.csv
     return [
       SectionHeader(tr("System")),
@@ -433,6 +462,9 @@ class BluePilotLayout(Widget):
       self._pc_blend_ratio_high_C,
       self._pc_blend_ratio_low_C,
       self._lc_pid_gain,
+      SectionHeader(tr("Driver Monitoring")),
+      self._dm_lowspeed_relax,
+      self._dm_sensitivity_btn,
     ]
 
   def _get_float_param(self, param: str, default: float) -> float:
@@ -632,6 +664,10 @@ class BluePilotLayout(Widget):
   def _set_hybrid_gauge_style(self, button_index: int):
     """Handle hybrid gauge style: 0 = Flat, 1 = Arched."""
     self._params.put("FordPrefHybridGaugeStyle", "arched" if button_index == 1 else "flat")
+
+  def _set_dm_sensitivity(self, button_index: int):
+    """BlueDragon: DM sensitivity preset. 0=Relaxed, 1=Standard, 2=Strict."""
+    self._params.put("BPDmSensitivity", button_index)
 
   def _render(self, rect):
     # Process WiFi manager callbacks

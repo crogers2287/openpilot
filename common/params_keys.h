@@ -308,6 +308,8 @@ inline static std::unordered_map<std::string, ParamKeyAttributes> keys = {
     {"BPHideOnroadBorder", {PERSISTENT | BACKUP, BOOL, "0"}},
     {"BPShowConfidenceBall", {PERSISTENT | BACKUP, BOOL, "1"}},
     {"BPAnimateSteeringWheel", {PERSISTENT | BACKUP, BOOL, "1"}},
+    {"BPDmLowSpeedRelax", {PERSISTENT | BACKUP, BOOL, "0"}},
+    {"BPDmSensitivity", {PERSISTENT | BACKUP, INT, "1"}},
     {"BPUIDebugLog", {PERSISTENT, BOOL, "0"}},
     {"Blindspot", {PERSISTENT | BACKUP, BOOL, "0"}},
     {"BlinkerPauseLaneChange", {PERSISTENT | BACKUP, BOOL, "0"}},
