@@ -36,6 +36,9 @@ class DRIVER_MONITOR_SETTINGS:
     self._SG_THRESHOLD = 0.9
     self._BLINK_THRESHOLD = 0.865
     self._PHONE_THRESH = 0.5
+    self._PHONE_THRESH2 = 15.0  # BluePilot: cherry-picked from dragonpilot - calibrated phone detection multiplier
+    self._PHONE_MAX_OFFSET = 0.06  # BluePilot: cherry-picked from dragonpilot - max phone prob calibration offset
+    self._PHONE_MIN_OFFSET = 0.025  # BluePilot: cherry-picked from dragonpilot - min phone prob calibration offset
 
     self._POSE_PITCH_THRESHOLD = 0.3133
     self._POSE_PITCH_THRESHOLD_SLACK = 0.3237
@@ -172,6 +175,9 @@ class DriverMonitoring:
 
     self.params = Params()
     self.too_distracted = self.params.get_bool("DriverTooDistracted")
+    # BluePilot: cherry-picked from dragonpilot - calibrated phone prob detection
+    self.phone_prob_calibrated = False
+    self.phone_offsetter = RunningStatFilter(max_trackable=self.settings._POSE_OFFSET_MAX_COUNT)
 
     self._reset_awareness()
     self._set_timers(active_monitoring=True)
@@ -249,7 +255,14 @@ class DriverMonitoring:
     if (self.blink.left + self.blink.right)*0.5 > self.settings._BLINK_THRESHOLD:
       distracted_types.append(DistractedType.DISTRACTED_BLINK)
 
-    if self.phone_prob > self.settings._PHONE_THRESH:
+    # BluePilot: cherry-picked from dragonpilot - calibrated phone detection
+    if self.phone_prob_calibrated:
+      phone_offset = min(self.phone_offsetter.filtered_stat.M, self.settings._PHONE_MAX_OFFSET)
+      phone_offset = max(phone_offset, self.settings._PHONE_MIN_OFFSET)
+      using_phone = self.phone_prob > phone_offset * self.settings._PHONE_THRESH2
+    else:
+      using_phone = self.phone_prob > self.settings._PHONE_THRESH
+    if using_phone:
       distracted_types.append(DistractedType.DISTRACTED_PHONE)
 
     return distracted_types
@@ -302,9 +315,11 @@ class DriverMonitoring:
     if self.face_detected and car_speed > self.settings._POSE_CALIB_MIN_SPEED and self.pose.low_std and (not op_engaged or not self.driver_distracted):
       self.pose.pitch_offseter.push_and_update(self.pose.pitch)
       self.pose.yaw_offseter.push_and_update(self.pose.yaw)
+      self.phone_offsetter.push_and_update(self.phone_prob)  # BluePilot: cherry-picked from dragonpilot
 
     self.pose.calibrated = self.pose.pitch_offseter.filtered_stat.n > self.settings._POSE_OFFSET_MIN_COUNT and \
                            self.pose.yaw_offseter.filtered_stat.n > self.settings._POSE_OFFSET_MIN_COUNT
+    self.phone_prob_calibrated = self.phone_offsetter.filtered_stat.n >= self.settings._POSE_OFFSET_MIN_COUNT  # BluePilot: cherry-picked from dragonpilot
 
     if self.face_detected and not self.driver_distracted:
       if model_std_max > self.settings._DCAM_UNCERTAIN_ALERT_THRESHOLD:
