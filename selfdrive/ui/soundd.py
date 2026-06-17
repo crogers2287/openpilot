@@ -86,6 +86,21 @@ class Soundd(QuietMode):
 
     self.spl_filter_weighted = FirstOrderFilter(0, 2.5, FILTER_DT, initialized=False)
 
+    # BlueDragon: mute the driver-monitoring "distracted" prompt nag (promptDistracted only;
+    # terminal/collision warnings are never affected)
+    self.bd_mute_dm_nag: bool = self.params.get_bool("BPDmMuteNag")
+
+  def load_param(self) -> None:
+    super().load_param()
+    if self._frame % 50 == 0:  # 2.5s, same cadence as QuietMode
+      self.bd_mute_dm_nag = self.params.get_bool("BPDmMuteNag")
+
+  def should_play_sound(self, current_alert: int) -> bool:
+    # BlueDragon: suppress only the soft DM nag; defer everything else to QuietMode logic
+    if self.bd_mute_dm_nag and current_alert == AudibleAlert.promptDistracted:
+      return False
+    return super().should_play_sound(current_alert)
+
   def load_sounds(self):
     self.loaded_sounds: dict[int, np.ndarray] = {}
 

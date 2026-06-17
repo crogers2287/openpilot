@@ -187,6 +187,18 @@ class DriverMonitoring:
     except (TypeError, ValueError):
       _bd_sens = 1
     self.bd_dm_factor = {0: 1.15, 1: 1.0, 2: 0.9}.get(_bd_sens, 1.0)
+    # DM mode: 0=Standard, 1=Passive (steering-touch timer only), 2=Off (camera DM disabled)
+    try:
+      self.bd_dm_mode = int(self.params.get("BPDmMode", return_default=True))
+    except (TypeError, ValueError):
+      self.bd_dm_mode = 0
+    # Passive steering-monitor timeout in seconds, clamped to dragonpilot's 70-360 range
+    try:
+      _bd_timer = int(self.params.get("BPDmPassiveTimer", return_default=True))
+    except (TypeError, ValueError):
+      _bd_timer = 70
+    if self.bd_dm_mode == 1:
+      self.settings._AWARENESS_TIME = float(max(70, min(_bd_timer, 360)))
 
     self._reset_awareness()
     self._set_timers(active_monitoring=True)
@@ -273,7 +285,8 @@ class DriverMonitoring:
       phone_offset = max(phone_offset, self.settings._PHONE_MIN_OFFSET)
       using_phone = self.phone_prob > phone_offset * self.settings._PHONE_THRESH2
     else:
-      using_phone = self.phone_prob > self.settings._PHONE_THRESH
+      # BlueDragon: scale the pre-calibration phone threshold by the sensitivity preset (B1)
+      using_phone = self.phone_prob > self.settings._PHONE_THRESH * self.bd_dm_factor
     if using_phone:
       distracted_types.append(DistractedType.DISTRACTED_PHONE)
 
@@ -344,7 +357,9 @@ class DriverMonitoring:
           self.dcam_uncertain_cnt = 0
 
     self.is_model_uncertain = self.hi_stds > self.settings._HI_STD_FALLBACK_TIME
-    self._set_timers(self.face_detected and not self.is_model_uncertain)
+    # BlueDragon: passive mode forces wheel-touch (steering) monitoring regardless of camera
+    _bd_active = self.face_detected and not self.is_model_uncertain
+    self._set_timers(False if self.bd_dm_mode == 1 else _bd_active)
     if self.face_detected and not self.pose.low_std and not self.driver_distracted:
       self.hi_stds += 1
     elif self.face_detected and self.pose.low_std:
@@ -352,6 +367,10 @@ class DriverMonitoring:
 
   def _update_events(self, driver_engaged, op_engaged, standstill, wrong_gear, car_speed):
     self._reset_events()
+    # BlueDragon: DM Off — pin awareness and emit no monitoring events (camera DM disabled)
+    if self.bd_dm_mode == 2:
+      self.awareness = self.awareness_active = self.awareness_passive = 1.0
+      return
     # Block engaging until ignition cycle after max number or time of distractions
     if self.terminal_alert_cnt >= self.settings._MAX_TERMINAL_ALERTS or \
        self.terminal_time >= self.settings._MAX_TERMINAL_DURATION:

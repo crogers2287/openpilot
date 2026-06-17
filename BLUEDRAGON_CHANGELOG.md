@@ -7,9 +7,33 @@ All branches are **source** branches — the 3X compiles them on first boot.
 
 | Branch | What's in it |
 |--------|--------------|
-| `comma3x` | Rolling latest (currently = `bd-1.1`) |
+| `comma3x` | Rolling latest (currently = `bd-1.2`) |
+| `bd-1.2` | `bd-1.1` + DM mode (Passive/Off), pre-calibration phone threshold, mute nag sound |
 | `bd-1.1` | `bd-1.0` + user-tunable Driver Monitoring options |
 | `bd-1.0` | BluePilot 6.0 + DragonPilot calibrated phone detection |
+
+---
+
+## bd-1.2 — DM mode, more tuning (DragonPilot-inspired)
+Extends the Settings → BluePilot → **Driver Monitoring** section.
+
+- **Driver Monitoring Mode** (`BPDmMode`, default Standard)
+  - *Standard* — normal camera DM.
+  - *Passive* — camera DM off; falls back to a wheel-touch (steering) timer only.
+  - *Off* — camera DM disabled entirely (awareness pinned, no DM events).
+  - ⚠️ Passive/Off **weaken a safety feature**. comma can detect this from uploaded
+    driving data and may flag/de-list the account from comma servers. Use a fork-only
+    posture (disable data upload / don't pair comma prime) if that matters to you.
+- **Passive Steering Timeout** (`BPDmPassiveTimer`, default 70 s; presets 70/120/180/360 s)
+  Wheel-touch timeout used in Passive mode. Clamped to DragonPilot's 70–360 s range.
+- **DM Sensitivity** now also scales the **pre-calibration** phone threshold (B1) —
+  fewer false phone nags in the first ~60 s of a drive.
+- **Mute Driver Monitoring Nag Sound** (`BPDmMuteNag`, default off)
+  Silences only the repeating `promptDistracted` chime. Terminal/red and
+  collision-warning sounds are never affected (scoped for safety).
+
+Implemented in `helpers.py` (mode/timer/sensitivity), `soundd.py` (mute, via
+`should_play_sound`), UI in `bluepilot.py`. All take effect on next drive / reboot.
 
 ---
 
