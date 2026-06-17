@@ -434,7 +434,7 @@ class BluePilotLayout(Widget):
       dm_mode_idx = 0
     self._dm_mode_btn = multiple_button_item(
       lambda: tr("Driver Monitoring Mode"),
-      lambda: tr("Standard = camera DM. Passive = wheel-touch timer only (no camera). Off = DM disabled. Off/Passive weaken a safety feature and may flag your account on comma servers. Next drive."),
+      lambda: tr("Standard = camera DM. Passive = wheel-touch timer only (no camera). Off = DM disabled. Passive/Off also cut the comma connection (no logging, upload, or remote) so those drives stay private. Weakens a safety feature; you stay responsible. Next drive/reboot."),
       buttons=[lambda: tr("Standard"), lambda: tr("Passive"), lambda: tr("Off")],
       button_width=225,
       callback=self._set_dm_mode,

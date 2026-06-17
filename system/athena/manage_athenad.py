@@ -29,11 +29,29 @@ def manage_athenad(dongle_id_param, pid_param, process_name, target):
                        dirty=build_metadata.openpilot.is_dirty,
                        device=HARDWARE.get_device_type())
 
+  def _bd_dm_relaxed():
+    # BlueDragon: True when DM is Passive/Off (BPDmMode != 0) -> keep athena offline
+    v = params.get("BPDmMode")
+    if isinstance(v, bytes):
+      v = v.decode()
+    return (v or "0").strip() not in ("", "0")
+
   try:
     while 1:
+      # BlueDragon: don't connect to comma while DM is Passive/Off
+      if _bd_dm_relaxed():
+        time.sleep(5)
+        continue
       cloudlog.info(f"starting {process_name} daemon")
       proc = Process(name=process_name, target=launcher, args=(target, process_name))
       proc.start()
+      # stop the comma connection if DM is switched to Passive/Off while running
+      while proc.is_alive():
+        if _bd_dm_relaxed():
+          cloudlog.info(f"BlueDragon: DM relaxed, stopping {process_name}")
+          proc.terminate()
+          break
+        proc.join(timeout=2)
       proc.join()
       cloudlog.event(f"{process_name} exited", exitcode=proc.exitcode)
       time.sleep(5)
