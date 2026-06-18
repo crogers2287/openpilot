@@ -7,12 +7,32 @@ All branches are **source** branches — the 3X compiles them on first boot.
 
 | Branch | What's in it |
 |--------|--------------|
-| `comma3x` | Rolling latest (currently = `bd-1.4`) |
-| `bd-1.4` | `bd-1.3` + Blue Dragon branding (boot splash, loading-screen logo, README) |
-| `bd-1.3` | `bd-1.2` + Passive/Off DM auto-cuts the comma connection (logging/upload/athena) |
+| `comma3x` | Rolling latest (currently = `bd-1.5`) |
+| `bd-1.5` | **Boot-hang fix** for `bd-1.3`/`bd-1.4` + Blue Dragon branding. Passive/Off now stops uploads only |
+| `bd-1.4` | ⚠️ BOOT HANG when Passive/Off enabled — use `bd-1.5`. (Blue Dragon branding) |
+| `bd-1.3` | ⚠️ BOOT HANG when Passive/Off enabled — use `bd-1.5`. (Passive/Off cut logging/athena) |
 | `bd-1.2` | `bd-1.1` + DM mode (Passive/Off), pre-calibration phone threshold, mute nag sound |
 | `bd-1.1` | `bd-1.0` + user-tunable Driver Monitoring options |
 | `bd-1.0` | BluePilot 6.0 + DragonPilot calibrated phone detection |
+
+---
+
+## bd-1.5 — Boot-hang fix (supersedes 1.3/1.4)
+`bd-1.3`/`bd-1.4` hung at the boot logo as soon as DM was set to Passive or Off. Cause:
+those versions gated **`loggerd`** off and restructured **`manage_athenad`** when DM was
+relaxed. On a comma device `loggerd` must keep running — turning it off is an unsupported
+state and stalled startup.
+
+Fix:
+- **Reverted** the `loggerd` gate (`process_config.logging`) and the `manage_athenad` loop
+  changes — both back to stock, so boot is never affected by DM mode.
+- **Kept** the safe privacy mechanism: Passive/Off still gate the **uploader** (comma +
+  sunnylink) via `bd_dm_relaxed`, so those drives are not uploaded to comma. Local logging
+  and comma-connect/athena are left alone.
+- Recovery for a stuck 1.3/1.4 device (no reflash): over SSH set `BPDmMode=0` and reboot.
+
+All DM tuning (low-speed relax, sensitivity, passive timer, mute nag) and the branding from
+1.1–1.4 are retained.
 
 ---
 

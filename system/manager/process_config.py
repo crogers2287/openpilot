@@ -33,8 +33,8 @@ def iscar(started: bool, params: Params, CP: car.CarParams) -> bool:
   return started and not CP.notCar
 
 def logging(started: bool, params: Params, CP: car.CarParams) -> bool:
-  if bd_dm_relaxed(params):  # BlueDragon: don't record logs while DM is Passive/Off
-    return False
+  # NOTE: loggerd must keep running on a car; do NOT gate it (caused a boot hang in bd-1.3/1.4).
+  # Privacy for Passive/Off DM is handled by gating the uploader only (see uploader_ready).
   run = (not CP.notCar) or not params.get_bool("DisableLogging")
   return started and run
 
