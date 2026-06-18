@@ -7,14 +7,34 @@ All branches are **source** branches — the 3X compiles them on first boot.
 
 | Branch | What's in it |
 |--------|--------------|
-| `comma3x` | Rolling latest (currently = `bd-1.6`) |
-| `bd-1.6` | `bd-1.5` + fix device loading logo (use the dragon, not the GitHub emblem) |
-| `bd-1.5` | **Boot-hang fix** for `bd-1.3`/`bd-1.4` + Blue Dragon branding. Passive/Off now stops uploads only |
-| `bd-1.4` | ⚠️ BOOT HANG when Passive/Off enabled — use `bd-1.5`. (Blue Dragon branding) |
-| `bd-1.3` | ⚠️ BOOT HANG when Passive/Off enabled — use `bd-1.5`. (Passive/Off cut logging/athena) |
+| `comma3x` | Rolling latest (currently = `bd-1.7`) |
+| `bd-1.7` | **Real boot/reboot fix** — Passive/Off is now pure DM logic, zero manager coupling |
+| `bd-1.6` | ⚠️ reboots on Passive — use `bd-1.7`. (device logo = dragon) |
+| `bd-1.5` | ⚠️ reboots on Passive — use `bd-1.7`. (loggerd revert, kept uploader gate = still bad) |
+| `bd-1.4` | ⚠️ BOOT HANG on Passive/Off — use `bd-1.7`. (branding) |
+| `bd-1.3` | ⚠️ BOOT HANG on Passive/Off — use `bd-1.7`. (Passive/Off cut logging/athena) |
 | `bd-1.2` | `bd-1.1` + DM mode (Passive/Off), pre-calibration phone threshold, mute nag sound |
 | `bd-1.1` | `bd-1.0` + user-tunable Driver Monitoring options |
 | `bd-1.0` | BluePilot 6.0 + DragonPilot calibrated phone detection |
+
+---
+
+## bd-1.7 — Real fix: Passive/Off no longer reboots the device
+bd-1.5's loggerd revert wasn't enough — bd-1.5/1.6 still **rebooted instantly** when DM
+was set to Passive. Root cause: the **uploader gating** I kept in
+`system/manager/process_config.py` read `BPDmMode` **live, every manager cycle**. The
+moment the param flipped, the manager re-evaluated it and that path took the manager down →
+instant reboot → and on restart it re-evaluated at boot → stuck at the splash.
+
+Fix: **`process_config.py` is reverted to fully stock** (and `manage_athenad` already was).
+There is now **zero** manager/process coupling to DM mode. Passive/Off is purely a
+driver-monitoring behavior change read once by `dmonitoringd` at start (`helpers.py`):
+- Passive = wheel-touch (steering) timer only, no camera DM
+- Off = DM disabled
+- plus the sensitivity / low-speed-relax / mute-nag options from 1.1–1.2
+
+**Dropped:** the automatic "cut comma uploads in Passive/Off" feature — that was the unsafe
+part. If you want those drives off comma, disable uploads / comma-connect manually.
 
 ---
 

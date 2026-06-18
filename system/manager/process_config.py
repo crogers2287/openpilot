@@ -15,14 +15,6 @@ from openpilot.sunnypilot.sunnylink.utils import sunnylink_need_register, sunnyl
 
 WEBCAM = os.getenv("USE_WEBCAM") is not None
 
-def bd_dm_relaxed(params: Params) -> bool:
-  # BlueDragon: True when DM is in Passive or Off mode (BPDmMode != 0). Used to cut the
-  # comma server connection (logging/uploads/athena) so those drives are never sent.
-  v = params.get("BPDmMode")
-  if isinstance(v, bytes):
-    v = v.decode()
-  return (v or "0").strip() not in ("", "0")
-
 def driverview(started: bool, params: Params, CP: car.CarParams) -> bool:
   return started or params.get_bool("IsDriverViewEnabled")
 
@@ -33,8 +25,6 @@ def iscar(started: bool, params: Params, CP: car.CarParams) -> bool:
   return started and not CP.notCar
 
 def logging(started: bool, params: Params, CP: car.CarParams) -> bool:
-  # NOTE: loggerd must keep running on a car; do NOT gate it (caused a boot hang in bd-1.3/1.4).
-  # Privacy for Passive/Off DM is handled by gating the uploader only (see uploader_ready).
   run = (not CP.notCar) or not params.get_bool("DisableLogging")
   return started and run
 
@@ -88,8 +78,6 @@ def sunnylink_need_register_shim(started, params, CP: car.CarParams) -> bool:
 
 def use_sunnylink_uploader_shim(started, params, CP: car.CarParams) -> bool:
   """Shim for use_sunnylink_uploader to match the process manager signature."""
-  if bd_dm_relaxed(params):  # BlueDragon: no sunnylink upload while DM is Passive/Off
-    return False
   return use_sunnylink_uploader(params)
 
 def is_tinygrad_model(started, params, CP: car.CarParams) -> bool:
@@ -104,8 +92,6 @@ def mapd_ready(started: bool, params: Params, CP: car.CarParams) -> bool:
   return bool(os.path.exists(Paths.mapd_root()))
 
 def uploader_ready(started: bool, params: Params, CP: car.CarParams) -> bool:
-  if bd_dm_relaxed(params):  # BlueDragon: no upload to comma while DM is Passive/Off
-    return False
   if not params.get_bool("OnroadUploads"):
     return only_offroad(started, params, CP)
 
