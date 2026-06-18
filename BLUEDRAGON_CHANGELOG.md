@@ -7,11 +7,24 @@ All branches are **source** branches — the 3X compiles them on first boot.
 
 | Branch | What's in it |
 |--------|--------------|
-| `comma3x` | Rolling latest (currently = `bd-1.3`) |
+| `comma3x` | Rolling latest (currently = `bd-1.4`) |
+| `bd-1.4` | `bd-1.3` + Blue Dragon branding (boot splash, loading-screen logo, README) |
 | `bd-1.3` | `bd-1.2` + Passive/Off DM auto-cuts the comma connection (logging/upload/athena) |
 | `bd-1.2` | `bd-1.1` + DM mode (Passive/Off), pre-calibration phone threshold, mute nag sound |
 | `bd-1.1` | `bd-1.0` + user-tunable Driver Monitoring options |
 | `bd-1.0` | BluePilot 6.0 + DragonPilot calibrated phone detection |
+
+---
+
+## bd-1.4 — Blue Dragon branding
+On-device and repo branding (no behavior change):
+- **Boot splash** — `selfdrive/assets/img_bluepilot_boot.jpg` (2160x1080, 3X/tizi) and
+  `img_bluepilot_boot_mici.jpg` (536x240) replaced with the Blue Dragon splash. Applied to
+  the device via `scripts/boot_logo.sh` (copies to `/usr/comma/bg.jpg`).
+- **Loading-screen logo** — `sunnypilot/selfdrive/assets/images/spinner_sunnypilot.png`
+  (1024x1024) replaced with the Blue Dragon emblem (shown on the boot/compile spinner).
+- **README** — Blue Dragon header (splash + logo + install table).
+- Source art kept in `branding/` (`bluedragon_splash.png`, `bluedragon_logo.png`).
 
 ---
 

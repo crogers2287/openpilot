@@ -1,3 +1,34 @@
+<p align="center">
+  <img src="branding/bluedragon_splash.png" alt="Blue Dragon" width="100%">
+</p>
+
+<h1 align="center">
+  <img src="branding/bluedragon_logo.png" alt="Blue Dragon logo" width="90" valign="middle">&nbsp; Blue Dragon
+</h1>
+
+**Blue Dragon** is a personal **comma 3X** fork of openpilot, built on **BluePilot 6.0** (sunnypilot / openpilot lineage), with calmer, user-tunable driver monitoring pulled from DragonPilot.
+
+### Install
+Enter on the device (Custom Software), or switch via **Settings → Software → Select Branch**:
+
+```
+installer.comma.ai/crogers2287/comma3x
+```
+
+| Branch | What's in it |
+|--------|--------------|
+| `comma3x` | Rolling latest |
+| `bd-1.3` | Passive/Off DM auto-cuts the comma connection (logging/upload/athena) |
+| `bd-1.2` | DM mode (Passive/Off), pre-calibration phone threshold, mute nag sound |
+| `bd-1.1` | Low-speed DM relax (incl. engaged) + sensitivity preset |
+| `bd-1.0` | BluePilot 6.0 + DragonPilot calibrated phone detection |
+
+Driver-monitoring options live in **Settings → BluePilot → Driver Monitoring**. Full notes in [`BLUEDRAGON_CHANGELOG.md`](BLUEDRAGON_CHANGELOG.md).
+
+> ⚠️ Passive/Off DM weakens a safety feature and cuts comma connectivity by design. You remain responsible for staying attentive.
+
+---
+
 ![](https://user-images.githubusercontent.com/47793918/233812617-beab2e71-57b9-479e-8bff-c3931347ca40.png)
 
 ## 🌞 What is sunnypilot?
