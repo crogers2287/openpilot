@@ -7,13 +7,24 @@ All branches are **source** branches — the 3X compiles them on first boot.
 
 | Branch | What's in it |
 |--------|--------------|
-| `comma3x` | Rolling latest (currently = `bd-1.5`) |
+| `comma3x` | Rolling latest (currently = `bd-1.6`) |
+| `bd-1.6` | `bd-1.5` + fix device loading logo (use the dragon, not the GitHub emblem) |
 | `bd-1.5` | **Boot-hang fix** for `bd-1.3`/`bd-1.4` + Blue Dragon branding. Passive/Off now stops uploads only |
 | `bd-1.4` | ⚠️ BOOT HANG when Passive/Off enabled — use `bd-1.5`. (Blue Dragon branding) |
 | `bd-1.3` | ⚠️ BOOT HANG when Passive/Off enabled — use `bd-1.5`. (Passive/Off cut logging/athena) |
 | `bd-1.2` | `bd-1.1` + DM mode (Passive/Off), pre-calibration phone threshold, mute nag sound |
 | `bd-1.1` | `bd-1.0` + user-tunable Driver Monitoring options |
 | `bd-1.0` | BluePilot 6.0 + DragonPilot calibrated phone detection |
+
+---
+
+## bd-1.6 — Branding fix: device loading logo
+The device loading spinner was wrongly using the GitHub repo emblem
+(`bluedragon_logo.png`). Swapped it to the **dragon** (a square crop of the splash,
+no wordmark) so the device shows device branding and the emblem stays GitHub-only.
+- Device boot splash: `img_bluepilot_boot.jpg` = full splash (unchanged)
+- Device loading spinner: `spinner_sunnypilot.png` = dragon crop (`branding/bluedragon_device_logo.png`)
+- GitHub README logo: `bluedragon_logo.png` emblem (unchanged)
 
 ---
 
