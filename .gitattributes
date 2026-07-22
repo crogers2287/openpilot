@@ -53,3 +53,11 @@ third_party/bootstrap/bootstrap-icons.ttf -filter -diff -merge
 
 # BluePilot custom sounds: store directly in Git, not upstream GitLab LFS.
 selfdrive/assets/sounds/bluepilot/*.wav -filter -diff -merge
+
+# Blue Dragon branding: raw git objects, same reasoning as the BluePilot block
+# above. These were committed as plain blobs, but `*.png filter=lfs` still
+# matched them -- so committing from any machine with git-lfs installed would
+# silently rewrite them into ~132-byte pointers whose objects were never
+# uploaded, leaving the boot splash and loading logo broken on the device.
+branding/** -filter -diff -merge
+sunnypilot/selfdrive/assets/images/spinner_sunnypilot.png -filter -diff -merge
