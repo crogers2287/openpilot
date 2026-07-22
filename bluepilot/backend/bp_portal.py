@@ -137,7 +137,7 @@ from bluepilot.backend.video import (
 )
 
 # System metrics
-from bluepilot.backend.system import get_system_metrics
+from bluepilot.backend.system import get_system_metrics, get_vehicle_status
 
 # Params management
 from bluepilot.backend.params.params_manager import (
@@ -1492,6 +1492,23 @@ class WebRoutesHandler(BaseHTTPRequestHandler):
                     'total': len(routes),
                     'disk_space': disk_info
                 })
+
+            elif path == '/api/troubleshoot':
+                # Changed-vs-default settings audit + live carState fault flags
+                try:
+                    from bluepilot.backend.system.troubleshoot import get_troubleshoot_report
+                    self.send_json_response({'success': True, **get_troubleshoot_report(params)})
+                except Exception as e:
+                    logger.error(f"Error building troubleshoot report: {e}", exc_info=True)
+                    self.send_json_response({'success': False, 'error': str(e)}, 500)
+
+            elif path == '/api/vehicle-status':
+                # Live fault flags only; cheap enough to poll while onroad
+                try:
+                    self.send_json_response({'success': True, **get_vehicle_status()})
+                except Exception as e:
+                    logger.error(f"Error reading vehicle status: {e}", exc_info=True)
+                    self.send_json_response({'success': False, 'error': str(e)}, 500)
 
             elif path == '/api/disk-space':
                 # Get current disk space status

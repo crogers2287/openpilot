@@ -201,6 +201,39 @@ def list_panels() -> list[dict]:
   return panels
 
 
+def iter_params() -> list[dict]:
+  """Every param the settings UI exposes, with where it lives.
+
+  [{key, title, panel, panelLabel, group}] -- used by the troubleshoot report
+  to diff current values against defaults. Omits the same blocked keys as the
+  panel endpoints.
+  """
+  schema = _load_schema()
+  if not schema:
+    return []
+
+  out: list[dict] = []
+  seen: set[str] = set()
+  for p in sorted(schema.get('panels', []), key=lambda x: x.get('order', 9999)):
+    panel_label = p.get('label', p.get('id', ''))
+    for section in p.get('sections', []):
+      for group in _convert_section(section):
+        for ctrl in group['controls']:
+          key = ctrl.get('param')
+          # static_text controls carry no param.
+          if not key or key in seen:
+            continue
+          seen.add(key)
+          out.append({
+            'key': key,
+            'title': ctrl.get('title', key),
+            'panel': _panel_public_id(p.get('id', '')),
+            'panelLabel': panel_label,
+            'group': group.get('title', ''),
+          })
+  return out
+
+
 def get_panel(public_id: str) -> dict | None:
   """Full PanelConfig for one panel, or None if unknown."""
   schema = _load_schema()

@@ -35,6 +35,7 @@ const SECTIONS: NavSection[] = [
     items: [
       { to: '/parameters', label: 'Parameters', icon: 'tune' },
       { to: '/logs', label: 'System Logs', icon: 'description' },
+      { to: '/troubleshoot', label: 'Troubleshoot', icon: 'healing' },
     ],
   },
 ]
