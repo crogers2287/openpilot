@@ -337,6 +337,11 @@ inline static std::unordered_map<std::string, ParamKeyAttributes> keys = {
     {"BPRainbowLines", {PERSISTENT | BACKUP, BOOL, "0"}},
     {"BPShowConfidenceBall", {PERSISTENT | BACKUP, BOOL, "1"}},
     {"BPAnimateSteeringWheel", {PERSISTENT | BACKUP, BOOL, "1"}},
+    {"BPDmLowSpeedRelax", {PERSISTENT | BACKUP, BOOL, "0"}},
+    {"BPDmSensitivity", {PERSISTENT | BACKUP, INT, "1"}},
+    {"BPDmMode", {PERSISTENT | BACKUP, INT, "0"}},
+    {"BPDmPassiveTimer", {PERSISTENT | BACKUP, INT, "70"}},
+    {"BPDmMuteNag", {PERSISTENT | BACKUP, BOOL, "0"}},
     // BluePilot: No static defaults; the first active UI persists its matching device styles (C4=0, C3X=1).
     {"BPSteeringWheelIconStyle", {PERSISTENT | BACKUP, INT}},
     {"BPDMStylingChoice", {PERSISTENT | BACKUP, INT}},

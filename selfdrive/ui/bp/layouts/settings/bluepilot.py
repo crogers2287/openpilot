@@ -94,6 +94,8 @@ class BluePilotLayout(Widget):
       ("disable_ford_radar_UI", self._disable_ford_radar),
       ("BpShowLateralControl", self._show_lateral_control),
       ("BPUIDebugLog", self._ui_debug_log),
+      ("BPDmLowSpeedRelax", self._dm_lowspeed_relax),
+      ("BPDmMuteNag", self._dm_mute_nag),
     )
 
     ui_state.add_offroad_transition_callback(self._update_toggles)
@@ -586,6 +588,75 @@ class BluePilotLayout(Widget):
       callback=self._clear_model_cache
     )
 
+    # BlueDragon: Driver Monitoring — low-speed relaxation (incl. engaged) + sensitivity preset
+    self._dm_lowspeed_relax = toggle_item(
+      lambda: tr("Relax Driver Monitoring at Low Speed"),
+      lambda: tr("Stop driver monitoring nags below ~25 mph, including while engaged (e.g. stop-and-go). Takes effect on next drive."),
+      initial_state=self._safe_get_bool(self._params, "BPDmLowSpeedRelax"),
+      callback=lambda state: self._toggle_callback(state, "BPDmLowSpeedRelax"),
+      icon="monitoring.png"
+    )
+
+    try:
+      dm_sens_idx = int(self._safe_get(self._params, "BPDmSensitivity") or 1)
+    except (TypeError, ValueError):
+      dm_sens_idx = 1
+    try:
+      if self._safe_get(self._params, "BPDmSensitivity") is None:
+        self._params.put("BPDmSensitivity", str(dm_sens_idx))
+    except UnknownKeyName:
+      pass
+    self._dm_sensitivity_btn = multiple_button_item(
+      lambda: tr("Driver Monitoring Sensitivity"),
+      lambda: tr("How readily distraction is flagged. Relaxed = fewer nags, Strict = stock. Takes effect on next drive."),
+      buttons=[lambda: tr("Relaxed"), lambda: tr("Standard"), lambda: tr("Strict")],
+      button_width=225,
+      callback=self._set_dm_sensitivity,
+      selected_index=dm_sens_idx,
+      icon="monitoring.png"
+    )
+
+    # DM mode: 0=Standard, 1=Passive (steering-touch timer), 2=Off (camera DM disabled)
+    try:
+      dm_mode_idx = int(self._safe_get(self._params, "BPDmMode") or 0)
+    except (TypeError, ValueError):
+      dm_mode_idx = 0
+    self._dm_mode_btn = multiple_button_item(
+      lambda: tr("Driver Monitoring Mode"),
+      lambda: tr("Standard = camera DM. Passive = wheel-touch timer only (no camera). Off = DM disabled. Weakens a safety feature; you stay responsible. Takes effect next drive."),
+      buttons=[lambda: tr("Standard"), lambda: tr("Passive"), lambda: tr("Off")],
+      button_width=225,
+      callback=self._set_dm_mode,
+      selected_index=dm_mode_idx,
+      icon="monitoring.png"
+    )
+
+    # Passive steering-touch timeout presets (seconds): 70 / 120 / 180 / 360
+    self._dm_passive_timer_values = [70, 120, 180, 360]
+    try:
+      _pt = int(self._safe_get(self._params, "BPDmPassiveTimer") or 70)
+    except (TypeError, ValueError):
+      _pt = 70
+    pt_idx = min(range(len(self._dm_passive_timer_values)),
+                 key=lambda i: abs(self._dm_passive_timer_values[i] - _pt))
+    self._dm_passive_timer_btn = multiple_button_item(
+      lambda: tr("Passive Steering Timeout"),
+      lambda: tr("Wheel-touch timeout when DM Mode is Passive. Longer = fewer prompts. Next drive."),
+      buttons=[lambda: tr("70s"), lambda: tr("2 min"), lambda: tr("3 min"), lambda: tr("6 min")],
+      button_width=170,
+      callback=self._set_dm_passive_timer,
+      selected_index=pt_idx,
+      icon="monitoring.png"
+    )
+
+    self._dm_mute_nag = toggle_item(
+      lambda: tr("Mute Driver Monitoring Nag Sound"),
+      lambda: tr("Silence the repeating 'pay attention' chime. Does NOT affect terminal/red or collision-warning sounds."),
+      initial_state=self._safe_get_bool(self._params, "BPDmMuteNag"),
+      callback=lambda state: self._toggle_callback(state, "BPDmMuteNag"),
+      icon="monitoring.png"
+    )
+
     # BluePilot: reset menu layout — collapses all sections, fixing overlap glitch without reboot.
     self._reset_menu_btn = button_item(
       lambda: tr("Reset Menu Layout"),
@@ -684,6 +755,13 @@ class BluePilotLayout(Widget):
         self._disable_BP_long,
         self._disable_dowhill_comp,
         self._disable_ford_radar,
+      ]) +
+      _section(tr("Driver Monitoring"), [
+        self._dm_lowspeed_relax,
+        self._dm_sensitivity_btn,
+        self._dm_mode_btn,
+        self._dm_passive_timer_btn,
+        self._dm_mute_nag,
       ]) +
       lateral_section
     )
@@ -1038,6 +1116,18 @@ class BluePilotLayout(Widget):
       self._params.put("FordPrefGaugeStyle", int(GaugeStyle(button_index)))
     except UnknownKeyName:
       pass
+
+  def _set_dm_sensitivity(self, button_index: int):
+    """BlueDragon: DM sensitivity preset. 0=Relaxed, 1=Standard, 2=Strict."""
+    self._params.put("BPDmSensitivity", button_index)
+
+  def _set_dm_mode(self, button_index: int):
+    """BlueDragon: DM mode. 0=Standard, 1=Passive (steering timer), 2=Off."""
+    self._params.put("BPDmMode", button_index)
+
+  def _set_dm_passive_timer(self, button_index: int):
+    """BlueDragon: passive steering-touch timeout preset (seconds)."""
+    self._params.put("BPDmPassiveTimer", self._dm_passive_timer_values[button_index])
 
   def _set_primary_lateral_control(self, button_index: int):
     try:

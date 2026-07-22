@@ -164,6 +164,37 @@ class DriverMonitoring:
     # BluePilot: cherry-picked from dragonpilot - once-per-drive offroad alert flag
     self.dcam_uncertain_alerted = False
 
+    # BlueDragon: user-tunable DM options (read once at init; apply on next drive/reboot).
+    # Deliberately read ONLY here — never from a manager process-gating callback (see BLUEDRAGON_CHANGELOG).
+    _bd_params = Params()
+    # Low-speed relaxation extended to the engaged case (stock exemption is disengaged-only)
+    self.bd_lowspeed_relax = _bd_params.get_bool("BPDmLowSpeedRelax")
+    # Sensitivity preset scales pose distraction thresholds: 0=Relaxed, 1=Standard, 2=Strict
+    try:
+      _bd_sens = int(_bd_params.get("BPDmSensitivity", return_default=True))
+    except (TypeError, ValueError):
+      _bd_sens = 1
+    self.bd_dm_factor = {0: 1.15, 1: 1.0, 2: 0.9}.get(_bd_sens, 1.0)
+    # DM mode: 0=Standard, 1=Passive (steering-touch policy only), 2=Off (camera DM disabled)
+    try:
+      self.bd_dm_mode = int(_bd_params.get("BPDmMode", return_default=True))
+    except (TypeError, ValueError):
+      self.bd_dm_mode = 0
+    # Passive wheel-touch timeout in seconds, clamped to dragonpilot's 70-360 range.
+    # bp-7.0 replaced the single _AWARENESS_TIME with a 3-stage ladder (15/24/30s), so scale
+    # the terminal timeout to the user's value and keep the stock 0.5/0.8 alert ratios.
+    try:
+      _bd_timer = int(_bd_params.get("BPDmPassiveTimer", return_default=True))
+    except (TypeError, ValueError):
+      _bd_timer = 70
+    if self.bd_dm_mode == 1:
+      _bd_terminal = float(max(70, min(_bd_timer, 360)))
+      _bd_ratio_1 = self.settings._WHEELTOUCH_POLICY_ALERT_1_TIMEOUT / self.settings._WHEELTOUCH_POLICY_ALERT_3_TIMEOUT
+      _bd_ratio_2 = self.settings._WHEELTOUCH_POLICY_ALERT_2_TIMEOUT / self.settings._WHEELTOUCH_POLICY_ALERT_3_TIMEOUT
+      self.settings._WHEELTOUCH_POLICY_ALERT_3_TIMEOUT = _bd_terminal
+      self.settings._WHEELTOUCH_POLICY_ALERT_1_TIMEOUT = _bd_terminal * _bd_ratio_1
+      self.settings._WHEELTOUCH_POLICY_ALERT_2_TIMEOUT = _bd_terminal * _bd_ratio_2
+
     self._reset_awareness()
     self._set_policy(MonitoringPolicy.vision)
 
@@ -233,6 +264,9 @@ class DriverMonitoring:
 
     pitch_threshold = self.settings._POSE_PITCH_THRESHOLD * self.pose.cfactor_pitch if self.pose.calibrated else self.settings._PITCH_NATURAL_THRESHOLD
     yaw_threshold = self.settings._POSE_YAW_THRESHOLD * self.pose.cfactor_yaw
+    # BlueDragon: sensitivity preset scales pose distraction thresholds (higher factor = less sensitive)
+    pitch_threshold *= self.bd_dm_factor
+    yaw_threshold *= self.bd_dm_factor
 
     self.distracted_types['pose'] = bool((pitch_error > pitch_threshold) or (yaw_error > yaw_threshold))
     self.distracted_types['eye'] = bool((self.blink.left + self.blink.right)*0.5 > self.settings._BLINK_THRESHOLD)
@@ -242,7 +276,8 @@ class DriverMonitoring:
       phone_offset = max(phone_offset, self.settings._PHONE_MIN_OFFSET)
       using_phone = self.phone_prob > phone_offset * self.settings._PHONE_THRESH2
     else:
-      using_phone = self.phone_prob > self.settings._PHONE_THRESH
+      # BlueDragon: scale the pre-calibration phone threshold by the sensitivity preset
+      using_phone = self.phone_prob > self.settings._PHONE_THRESH * self.bd_dm_factor
     self.distracted_types['phone'] = bool(using_phone)
 
   def _update_states(self, driver_state, cal_rpy, car_speed, op_engaged, standstill, demo_mode=False, steering_angle_deg=0.):
@@ -307,7 +342,10 @@ class DriverMonitoring:
           self.dcam_uncertain_cnt = 0
 
     self.is_model_uncertain = self.hi_stds >= self.settings._HI_STD_FALLBACK_TIME
-    self._set_policy(MonitoringPolicy.vision if self.face_detected and not self.is_model_uncertain else MonitoringPolicy.wheeltouch)
+    # BlueDragon: Passive mode forces wheel-touch monitoring regardless of camera state
+    _bd_vision_ok = self.face_detected and not self.is_model_uncertain
+    self._set_policy(MonitoringPolicy.wheeltouch if self.bd_dm_mode == 1 else
+                     (MonitoringPolicy.vision if _bd_vision_ok else MonitoringPolicy.wheeltouch))
     if self.face_detected and not self.pose.low_std and not self.driver_distracted:
       self.hi_stds += 1
     elif self.face_detected and self.pose.low_std:
@@ -316,6 +354,11 @@ class DriverMonitoring:
   def _update_events(self, driver_engaged, op_engaged, standstill, wrong_gear, car_speed=0.):
     self.alert_level = AlertLevel.none
     self.driver_interacting = driver_engaged
+
+    # BlueDragon: DM Off — pin awareness and emit no monitoring events (camera DM disabled)
+    if self.bd_dm_mode == 2:
+      self._reset_awareness()
+      return
 
     if self.terminal_alert_cnt >= self.settings._MAX_TERMINAL_ALERTS or \
        self.terminal_time >= self.settings._MAX_TERMINAL_DURATION:
@@ -334,7 +377,9 @@ class DriverMonitoring:
     _reaching_alert_3 = self.awareness - self.step_change <= 0
     standstill_exemption = standstill and _reaching_alert_1
     always_on_exemption = always_on_valid and not op_engaged and _reaching_alert_3
-    always_on_lowspeed_exemption = always_on_valid and not op_engaged and car_speed < self.settings._ALWAYS_ON_ALERT_MIN_SPEED  # BluePilot: from dragonpilot
+    # BluePilot: from dragonpilot. BlueDragon: stock exemption is disengaged-only; BPDmLowSpeedRelax extends it to the engaged case
+    _bd_lowspeed = car_speed < self.settings._ALWAYS_ON_ALERT_MIN_SPEED
+    always_on_lowspeed_exemption = _bd_lowspeed and ((always_on_valid and not op_engaged) or self.bd_lowspeed_relax)
 
     if self.awareness > 0 and \
        ((self.driver_distraction_filter.x < 0.37 and self.face_detected and self.pose.low_std) or standstill_exemption):
