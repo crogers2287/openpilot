@@ -146,6 +146,9 @@ from bluepilot.backend.params.params_manager import (
 )
 from bluepilot.backend.params.params_watcher import ParamsWatcher
 
+# Settings panel schema, adapted from sunnypilot's generated settings_ui.json
+from bluepilot.backend import settings_schema
+
 # Cache management
 from bluepilot.backend.cache import (
     get_all_cache_sizes, cleanup_old_cache,
@@ -2081,6 +2084,13 @@ class WebRoutesHandler(BaseHTTPRequestHandler):
                         if panel_id not in panel_order:
                             panels.append(panel_info)
 
+                    # The Qt-era menus/ directory no longer exists in this
+                    # lineage, so the glob above matches nothing. Fall back to
+                    # sunnypilot's generated settings_ui.json, which is the
+                    # live schema the device UI is built from.
+                    if not panels:
+                        panels = settings_schema.list_panels()
+
                     self.send_json_response({
                         'success': True,
                         'panels': panels
@@ -2098,7 +2108,13 @@ class WebRoutesHandler(BaseHTTPRequestHandler):
                     panel_file = panel_dir / f'{panel_id}.json'
 
                     if not panel_file.exists():
-                        self.send_json_response({'success': False, 'error': 'Panel not found'}, 404)
+                        # See /api/panels above: fall back to the generated
+                        # sunnypilot schema when the legacy menus/ dir is absent.
+                        panel_data = settings_schema.get_panel(panel_id)
+                        if panel_data is None:
+                            self.send_json_response({'success': False, 'error': 'Panel not found'}, 404)
+                            return
+                        self.send_json_response({'success': True, 'panel': panel_data})
                         return
 
                     with open(panel_file, 'r') as f:
