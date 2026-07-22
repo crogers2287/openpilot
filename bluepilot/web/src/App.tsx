@@ -4,6 +4,7 @@ import { useWebSocketStore } from '@/stores/useWebSocketStore'
 import { useSystemStore } from '@/stores/useSystemStore'
 import { useToastStore } from '@/stores/useToastStore'
 import { WarningBanners, StatusOverlay } from '@/components/common'
+import { Sidebar } from '@/components/layout/Sidebar'
 import { ToastContainer } from '@/components/common/Toast'
 import { systemAPI } from '@/services/api'
 import type { DeviceStatus } from '@/types'
@@ -93,14 +94,19 @@ function App() {
         <StatusOverlay type={deviceStatus} onRetry={handleRetryConnection} />
       )}
       <ToastContainer toasts={toasts} onRemove={removeToast} />
-      <Routes>
-        <Route path="/" element={<Home deviceStatus={deviceStatus} />} />
-        <Route path="/settings" element={<SettingsView deviceStatus={deviceStatus} />} />
-        <Route path="/routes" element={<RoutesView deviceStatus={deviceStatus} />} />
-        <Route path="/parameters" element={<ParametersView deviceStatus={deviceStatus} />} />
-        <Route path="/logs" element={<LogsView deviceStatus={deviceStatus} />} />
-        <Route path="*" element={<Navigate to="/" replace />} />
-      </Routes>
+      <div className="app-shell">
+        <Sidebar />
+        <main className="app-content">
+          <Routes>
+            <Route path="/" element={<Home deviceStatus={deviceStatus} />} />
+            <Route path="/settings" element={<SettingsView deviceStatus={deviceStatus} />} />
+            <Route path="/routes" element={<RoutesView deviceStatus={deviceStatus} />} />
+            <Route path="/parameters" element={<ParametersView deviceStatus={deviceStatus} />} />
+            <Route path="/logs" element={<LogsView deviceStatus={deviceStatus} />} />
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Routes>
+        </main>
+      </div>
     </BrowserRouter>
   )
 }
