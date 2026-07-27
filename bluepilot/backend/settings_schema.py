@@ -38,6 +38,33 @@ SETTINGS_UI_JSON = _REPO_ROOT / 'sunnypilot' / 'sunnylink' / 'settings_ui.json'
 # not be reachable from the web UI either -- they grant shell/ADB access.
 _ALWAYS_OMIT = {'AdbEnabled', 'SshEnabled'}
 
+# Human descriptions for sections the source schema leaves blank, keyed by the
+# portal groupName (section id, or '<section>_<sub_panel>' for flattened
+# sub-panels). Schema-provided descriptions always win; these only fill gaps so
+# every group on the Settings page explains what it does.
+_GROUP_DESC_FALLBACKS = {
+  'mads': 'Lets steering assist run independently of cruise control, so lane keeping stays '
+          'active when you brake or cruise is off.',
+  'mads_mads_settings': 'Fine-tune when MADS engages and disengages — pause/resume behavior '
+                        'with the brake pedal and cruise state.',
+  'torque_torque_settings': 'Advanced steering torque tuning — how much force is applied and '
+                            'how it is calculated. Leave at defaults unless steering feels wrong.',
+  'core_cruise_features': 'Core driving behavior — acceleration profile, following distance, '
+                          'and experimental mode.',
+  'custom_acc_increments': 'Change how much each press of the cruise +/- buttons adjusts your '
+                           'set speed.',
+  'custom_acc_increments_custom_acc_intervals': 'Set speed change per short press and per long '
+                                                'press of the cruise buttons.',
+  'speed_limits_speed_limit_settings': 'How the car reacts to posted speed limits — data source, '
+                                       'offset above the limit, and whether changes need confirmation.',
+  'smart_cruise': 'Automatic cruise speed adjustments for upcoming curves and traffic.',
+  'core_toggles': 'The main openpilot on/off switches for this device.',
+  'language': 'Device display language.',
+  'general': 'Basic device behavior — joining, camera preview, and reset options.',
+  'advanced_services': 'Low-level services and integrations. Only change these if you know '
+                       'exactly what they do.',
+}
+
 
 def _panel_public_id(raw_id: str) -> str:
   """'steering' -> 'bp_steering_panel', matching bp_portal's existing ordering."""
@@ -153,15 +180,18 @@ def _convert_section(section: dict) -> list[dict]:
       # A few sections carry no title; the portal renders that as a blank
       # header, so fall back to the section id.
       'title': section.get('title') or _titleize(section_id),
+      'description': section.get('description') or _GROUP_DESC_FALLBACKS.get(section_id, ''),
       'controls': controls,
     })
 
   for sub in section.get('sub_panels') or []:
     sub_controls = _convert_items(sub.get('items'))
     if sub_controls:
+      group_name = f"{section.get('id', '')}_{sub.get('id', '')}"
       groups.append({
-        'groupName': f"{section.get('id', '')}_{sub.get('id', '')}",
+        'groupName': group_name,
         'title': sub.get('label', section.get('title', '')),
+        'description': sub.get('description') or _GROUP_DESC_FALLBACKS.get(group_name, ''),
         'controls': sub_controls,
       })
   return groups
