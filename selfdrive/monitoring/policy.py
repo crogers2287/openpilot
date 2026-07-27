@@ -368,7 +368,11 @@ class DriverMonitoring:
     # BlueDragon: terminal-alert engage-lockout removed (see __init__ note)
 
     always_on_valid = self.always_on and not wrong_gear
-    if (self.driver_interacting and self.awareness > 0 and self.active_policy == MonitoringPolicy.wheeltouch) or \
+    # BlueDragon: in Passive, a wheel touch resets at ANY alert level (stock requires
+    # awareness > 0, forcing a disengage once red is reached — too punishing for a
+    # deliberately relaxed mode)
+    _bd_touch_reset = self.awareness > 0 or self.bd_dm_mode == 1
+    if (self.driver_interacting and _bd_touch_reset and self.active_policy == MonitoringPolicy.wheeltouch) or \
        (not always_on_valid and not op_engaged) or \
        (always_on_valid and not op_engaged and self.awareness <= 0):
       # always reset on disengage with normal mode; disengage resets only on red if always on
@@ -384,8 +388,12 @@ class DriverMonitoring:
     _bd_lowspeed = car_speed < self.settings._ALWAYS_ON_ALERT_MIN_SPEED
     always_on_lowspeed_exemption = _bd_lowspeed and ((always_on_valid and not op_engaged) or self.bd_lowspeed_relax)
 
+    # BlueDragon: in Passive, seeing the face at all is enough to recover — pose and
+    # distraction judgments are Standard-mode concepts
+    _bd_passive_recovery = self.bd_dm_mode == 1 and self.face_detected
     if self.awareness > 0 and \
-       ((self.driver_distraction_filter.x < 0.37 and self.face_detected and self.pose.low_std) or standstill_exemption):
+       ((self.driver_distraction_filter.x < 0.37 and self.face_detected and self.pose.low_std) or
+        _bd_passive_recovery or standstill_exemption):
       if self.driver_interacting:
         self._reset_awareness()
         return
@@ -398,7 +406,12 @@ class DriverMonitoring:
       if self.awareness > self.threshold_alert_2:
         return
 
-    certainly_distracted = self.driver_distraction_filter.x > 0.63 and self.driver_distracted and self.face_detected
+    # BlueDragon: in Passive the camera's DISTRACTION judgment must never start the
+    # countdown ("wheel-touch timer only, no camera" — the mode's own description).
+    # Only losing the face / model uncertainty (camera can't vouch for presence at all)
+    # arms the wheel-touch timer.
+    certainly_distracted = self.driver_distraction_filter.x > 0.63 and self.driver_distracted and self.face_detected \
+                           and self.bd_dm_mode != 1
     maybe_distracted = self.is_model_uncertain or not self.face_detected
 
     if certainly_distracted or maybe_distracted:
