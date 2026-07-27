@@ -39,15 +39,20 @@ def dmonitoringd_thread():
       demo_mode = params.get_bool("IsDriverViewEnabled")
 
     # save rhd virtual toggle every 5 mins
+    # BlueDragon: bp-7.0's params dropped put_bool_nonblocking; the old
+    # dragonpilot cherry-pick raised AttributeError here at every 5-minute
+    # frameId boundary once the wheel-position filter warmed up, killing
+    # dmonitoringd mid-drive ("Process Not Running: dmonitoringd").
+    # put_bool is non-blocking by default in this params API.
     if (sm['driverStateV2'].frameId % 6000 == 0 and not demo_mode and
      DM.wheelpos_offsetter.filtered_stat.n > DM.settings._WHEELPOS_FILTER_MIN_COUNT and
      DM.wheel_on_right == (DM.wheelpos_offsetter.filtered_stat.M > DM.settings._WHEELPOS_THRESHOLD)):
-      params.put_bool_nonblocking("IsRhdDetected", DM.wheel_on_right)  # BluePilot: cherry-picked from dragonpilot - use nonblocking for realtime thread
+      params.put_bool("IsRhdDetected", bool(DM.wheel_on_right))
 
-    # BluePilot: cherry-picked from dragonpilot - offroad alert for uncertain driver monitoring
-    if DM.dcam_uncertain_cnt > DM.settings._DCAM_UNCERTAIN_ALERT_COUNT and not DM.dcam_uncertain_alerted:
-      params.put_bool("Offroad_DriverMonitoringUncertain", True)
-      DM.dcam_uncertain_alerted = True
+    # BlueDragon: dropped the dragonpilot uncertain-DM offroad alert cherry-pick.
+    # bp-7.0 raises the same alert natively (selfdrived watches
+    # visionPolicyState.uncertainOffroadAlertPercent and uses set_offroad_alert,
+    # which writes the JSON payload this param key expects; put_bool did not).
 
 def main():
   dmonitoringd_thread()
