@@ -157,7 +157,12 @@ class DriverMonitoring:
     self.threshold_alert_2 = 0.
     self.dcam_uncertain_cnt = 0
     self.dcam_reset_cnt = 0
-    self.too_distracted = Params().get_bool("DriverTooDistracted")
+    # BlueDragon: DM engage-lockout guard removed. bp-7.0 latched this from the persistent
+    # DriverTooDistracted param and from 3 terminal alerts / 30s cumulative terminal time,
+    # blocking engagement until reboot; on tici there is no UI path that clears the param
+    # (only mici's driver_camera_dialog does). Escalation alerts still display — only the
+    # engage-lockout is gone.
+    self.too_distracted = False
     # BluePilot: cherry-picked from dragonpilot - calibrated phone prob detection
     self.phone_prob_calibrated = False
     self.phone_offsetter = RunningStatFilter(max_trackable=self.settings._POSE_OFFSET_MAX_COUNT)
@@ -360,9 +365,7 @@ class DriverMonitoring:
       self._reset_awareness()
       return
 
-    if self.terminal_alert_cnt >= self.settings._MAX_TERMINAL_ALERTS or \
-       self.terminal_time >= self.settings._MAX_TERMINAL_DURATION:
-      self.too_distracted = True
+    # BlueDragon: terminal-alert engage-lockout removed (see __init__ note)
 
     always_on_valid = self.always_on and not wrong_gear
     if (self.driver_interacting and self.awareness > 0 and self.active_policy == MonitoringPolicy.wheeltouch) or \
