@@ -53,8 +53,14 @@ else:
     ThermalStatus.critical: ThermalBand(94.0, None),
   })
 
-# Override to highest thermal band when offroad and above this temp
-OFFROAD_DANGER_TEMP = 85 if HARDWARE.get_device_type() == "mici" else 75
+# Override to highest thermal band when offroad and above this temp.
+# BlueDragon: was 75 on tici/tizi, tuned when the fan setpoint was also 75 (AGNOS 16).
+# AGNOS 18.1 raised the LMH throttle ceiling so the SoC legitimately idles hotter, and
+# the fan is now tuned to HOLD 77 (see fan_controller.py OFFSET) -- 2C above the old
+# danger line. That made a device sitting at its own fan setpoint trip "System
+# Overheated". 85 keeps real protection (the engage-blocking bands at 88/94/107 are
+# untouched) while leaving headroom above where the fan is asked to stabilize.
+OFFROAD_DANGER_TEMP = 85
 
 prev_offroad_states: dict[str, tuple[bool, str | None]] = {}
 
@@ -165,6 +171,10 @@ def hardware_thread(end_event, hw_queue) -> None:
   off_ts: float | None = None
   started_ts: float | None = None
   started_seen = False
+  # BlueDragon: dedicated "continuously offroad since" clock for the thermal danger
+  # override. off_ts can't be reused -- it stays None until the first onroad->offroad
+  # transition and also feeds shutdown/uptime accounting. We are offroad at boot.
+  offroad_since_ts: float | None = time.monotonic()
   startup_blocked_ts: float | None = None
   thermal_status = ThermalStatus.ok
 
@@ -270,18 +280,26 @@ def hardware_thread(end_event, hw_queue) -> None:
 
     msg.deviceState.fanSpeedPercentDesired = fan_controller.update(all_comp_temp, onroad_conditions["ignition"])
 
-    is_offroad_for_5_min = (started_ts is None) and ((not started_seen) or (off_ts is None) or (time.monotonic() - off_ts > 60 * 5))
+    # BlueDragon: this used to be true the instant the process started (`not started_seen`
+    # / `off_ts is None`), so the "offroad for 5 min" override actually armed at boot --
+    # and because blocking the drive kept started_seen False, it never disarmed.
+    is_offroad_for_5_min = (started_ts is None) and (offroad_since_ts is not None) and \
+                           (time.monotonic() - offroad_since_ts > 60 * 5)
+
+    # BlueDragon: always run the hysteresis band walk so thermal_status tracks reality.
+    # It used to sit in the `else` of the override, so while the override was latched the
+    # status was pinned at critical and had to walk back down band-by-band afterwards.
+    current_band = THERMAL_BANDS[thermal_status]
+    band_idx = list(THERMAL_BANDS.keys()).index(thermal_status)
+    if current_band.min_temp is not None and all_comp_temp < current_band.min_temp:
+      thermal_status = list(THERMAL_BANDS.keys())[band_idx - 1]
+    elif current_band.max_temp is not None and all_comp_temp > current_band.max_temp:
+      thermal_status = list(THERMAL_BANDS.keys())[band_idx + 1]
+
     if is_offroad_for_5_min and offroad_comp_temp > OFFROAD_DANGER_TEMP:
       # if device is offroad and already hot without the extra onroad load,
       # we want to cool down first before increasing load
       thermal_status = ThermalStatus.critical
-    else:
-      current_band = THERMAL_BANDS[thermal_status]
-      band_idx = list(THERMAL_BANDS.keys()).index(thermal_status)
-      if current_band.min_temp is not None and all_comp_temp < current_band.min_temp:
-        thermal_status = list(THERMAL_BANDS.keys())[band_idx - 1]
-      elif current_band.max_temp is not None and all_comp_temp > current_band.max_temp:
-        thermal_status = list(THERMAL_BANDS.keys())[band_idx + 1]
 
     # **** starting logic ****
 
@@ -355,6 +373,7 @@ def hardware_thread(end_event, hw_queue) -> None:
 
     if should_start:
       off_ts = None
+      offroad_since_ts = None  # BlueDragon: onroad, so the offroad clock is not running
       if started_ts is None:
         started_ts = time.monotonic()
         started_seen = True
@@ -372,6 +391,8 @@ def hardware_thread(end_event, hw_queue) -> None:
       started_ts = None
       if off_ts is None:
         off_ts = time.monotonic()
+      if offroad_since_ts is None:  # BlueDragon: start the continuously-offroad clock
+        offroad_since_ts = time.monotonic()
 
     # Offroad power monitoring
     voltage = None if peripheralState.pandaType == log.PandaState.PandaType.unknown else peripheralState.voltage
