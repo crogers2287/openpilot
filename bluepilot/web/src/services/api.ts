@@ -10,6 +10,7 @@ import type {
   DeviceInfo,
   TroubleshootReport,
   VehicleStatus,
+  TailscaleStatus,
 } from '@/types'
 import { useToastStore } from '@/stores/useToastStore'
 
@@ -224,6 +225,30 @@ export const systemAPI = {
 
   getDeviceInfo: async (): Promise<DeviceInfo> => {
     const { data } = await api.get('/api/system/device-info')
+    return data
+  },
+}
+
+// Tailnet (Tailscale) API. The auth key is write-only -- it is sent on connect
+// and never returned by getStatus().
+export const tailscaleAPI = {
+  getStatus: async (): Promise<TailscaleStatus> => {
+    const { data } = await api.get('/api/tailscale/status')
+    return data
+  },
+
+  install: async (): Promise<{ success: boolean; error?: string }> => {
+    const { data } = await api.post('/api/tailscale/install')
+    return data
+  },
+
+  up: async (payload: { authkey?: string; hostname?: string }): Promise<{ success: boolean; error?: string }> => {
+    const { data } = await api.post('/api/tailscale/up', payload)
+    return data
+  },
+
+  down: async (): Promise<{ success: boolean; error?: string }> => {
+    const { data } = await api.post('/api/tailscale/down')
     return data
   },
 }

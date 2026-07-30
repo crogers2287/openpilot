@@ -899,7 +899,7 @@ class WebRoutesHandler(BaseHTTPRequestHandler):
 
             # SPA routes - serve index.html for frontend routes
             # This allows direct navigation and page refresh to work
-            SPA_ROUTES = {'/', '/index.html', '/settings', '/parameters', '/routes', '/logs'}
+            SPA_ROUTES = {'/', '/index.html', '/settings', '/parameters', '/routes', '/logs', '/troubleshoot', '/tailnet'}
 
             # Route handlers
             if path in SPA_ROUTES or path.startswith('/settings/'):
@@ -1508,6 +1508,15 @@ class WebRoutesHandler(BaseHTTPRequestHandler):
                     self.send_json_response({'success': True, **get_vehicle_status()})
                 except Exception as e:
                     logger.error(f"Error reading vehicle status: {e}", exc_info=True)
+                    self.send_json_response({'success': False, 'error': str(e)}, 500)
+
+            elif path == '/api/tailscale/status':
+                # Tailnet state. Safe to poll: never returns the auth key.
+                try:
+                    from bluepilot.backend.network import tailscale
+                    self.send_json_response({'success': True, **tailscale.status()})
+                except Exception as e:
+                    logger.error(f"Error reading tailscale status: {e}", exc_info=True)
                     self.send_json_response({'success': False, 'error': str(e)}, 500)
 
             elif path == '/api/disk-space':
@@ -3125,6 +3134,38 @@ class WebRoutesHandler(BaseHTTPRequestHandler):
                         'error': str(e)
                     }, 500)
 
+            elif path.startswith('/api/tailscale/'):
+                # Tailnet control: install (background download), up, down.
+                # Auth keys are read from the body, passed straight to the CLI,
+                # and never logged or stored.
+                try:
+                    from bluepilot.backend.network import tailscale
+
+                    body = {}
+                    content_length = int(self.headers.get('Content-Length', 0))
+                    if content_length > 0:
+                        body = json.loads(self.rfile.read(content_length).decode('utf-8'))
+
+                    action = path[len('/api/tailscale/'):]
+                    if action == 'install':
+                        self.send_json_response(tailscale.start_install())
+                    elif action == 'up':
+                        self.send_json_response(tailscale.up(
+                            authkey=(body.get('authkey') or '').strip() or None,
+                            hostname=(body.get('hostname') or '').strip() or None,
+                        ))
+                    elif action == 'down':
+                        self.send_json_response(tailscale.down())
+                    else:
+                        self.send_json_response({'success': False, 'error': 'Unknown action'}, 404)
+                except json.JSONDecodeError:
+                    self.send_json_response({'success': False, 'error': 'Invalid JSON body'}, 400)
+                except Exception as e:
+                    # Deliberately not logging the exception body verbatim beyond
+                    # the message: request bodies here can carry an auth key.
+                    logger.error(f"Error handling tailscale action: {e}")
+                    self.send_json_response({'success': False, 'error': str(e)}, 500)
+
             elif path == '/api/params/restore':
                 # Restore BACKUP-flagged params from backup data
                 try:
@@ -3777,6 +3818,15 @@ def main():
     signal.signal(signal.SIGTERM, signal_handler)
     signal.signal(signal.SIGINT, signal_handler)
     logger.info("Registered graceful shutdown handlers")
+
+    # Bring the tailnet back up if the user enabled it. Best-effort by design --
+    # tailscale.autostart() swallows everything so a VPN problem can never stop
+    # the portal from serving.
+    try:
+        from bluepilot.backend.network import tailscale
+        threading.Thread(target=tailscale.autostart, daemon=True, name='tailscale-autostart').start()
+    except Exception as e:
+        logger.error(f"Could not schedule tailscale autostart: {e}")
 
     # Check if dependencies are available (don't install yet - server starts first)
     deps_available = lifecycle.check_dependencies()

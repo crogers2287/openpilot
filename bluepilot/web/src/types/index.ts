@@ -248,3 +248,26 @@ export interface TroubleshootReport {
   settings: SettingsDiff
   vehicle: VehicleStatus
 }
+
+export interface TailscaleInstallProgress {
+  running: boolean
+  stage: string | null
+  percent: number
+  error: string | null
+}
+
+export interface TailscaleStatus {
+  success?: boolean
+  installed: boolean
+  daemon_running: boolean
+  enabled: boolean
+  hostname: string
+  version: string | null
+  tun: boolean
+  backend_state: string | null
+  auth_url: string | null
+  ips: string[]
+  tailnet: string | null
+  peers: number
+  install: TailscaleInstallProgress
+}
