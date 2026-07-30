@@ -68,7 +68,10 @@ export const Sidebar = () => {
         aria-label="Primary navigation"
       >
         <div className="sidebar-header">
-          <span className="sidebar-brand">BluePilot</span>
+          <span className="sidebar-brand">
+            <img src="/icons/bluedragon.svg" alt="" className="sidebar-brand-mark" />
+            Blue Dragon
+          </span>
           <button
             type="button"
             className="icon-btn sidebar-close"

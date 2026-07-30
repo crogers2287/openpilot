@@ -26,12 +26,12 @@ export const Header = ({
   const headerRef = useRef<HTMLElement | null>(null)
 
   const getTitle = () => {
-    if (location.pathname === '/') return 'BluePilot'
+    if (location.pathname === '/') return 'Blue Dragon'
     if (isRoutesPage) return 'Routes'
     if (location.pathname.startsWith('/parameters')) return 'Parameters'
     if (location.pathname.startsWith('/logs')) return 'System Logs'
     if (location.pathname.startsWith('/settings')) return 'Settings'
-    return 'BluePilot'
+    return 'Blue Dragon'
   }
 
   const isParametersPage = location.pathname.startsWith('/parameters')

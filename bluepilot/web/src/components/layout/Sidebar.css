@@ -28,10 +28,19 @@
 }
 
 .sidebar-brand {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
   font-size: 1.1rem;
   font-weight: 700;
   color: var(--bp-text-primary);
   letter-spacing: 0.02em;
+}
+
+.sidebar-brand-mark {
+  width: 26px;
+  height: 26px;
+  flex: none;
 }
 
 /* The close affordance only makes sense for the mobile drawer. */

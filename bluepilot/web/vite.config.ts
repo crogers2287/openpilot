@@ -75,9 +75,9 @@ export default defineConfig({
         ],
       },
       manifest: {
-        name: 'BluePilot',
-        short_name: 'BluePilot',
-        description: 'BluePilot Web Interface - Route Manager and System Monitor',
+        name: 'Blue Dragon',
+        short_name: 'Blue Dragon',
+        description: 'Blue Dragon Web Interface - Route Manager and System Monitor',
         theme_color: '#151515',
         background_color: '#151515',
         display: 'standalone',
