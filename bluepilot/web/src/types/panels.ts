@@ -29,6 +29,7 @@ export interface PanelConfig {
 export interface PanelGroup {
   groupName: string
   title: string
+  description?: string
   controls: PanelControl[]
   enableResetButton?: boolean
   hidden?: boolean

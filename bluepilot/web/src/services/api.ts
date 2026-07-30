@@ -8,6 +8,8 @@ import type {
   DiskSpace,
   VehicleInfo,
   DeviceInfo,
+  TroubleshootReport,
+  VehicleStatus,
 } from '@/types'
 import { useToastStore } from '@/stores/useToastStore'
 
@@ -172,6 +174,19 @@ export const paramsAPI = {
 }
 
 // System API
+export const troubleshootAPI = {
+  getReport: async (): Promise<TroubleshootReport> => {
+    const { data } = await api.get('/api/troubleshoot')
+    return data
+  },
+
+  // Fault flags only -- light enough to poll while onroad.
+  getVehicleStatus: async (): Promise<VehicleStatus> => {
+    const { data } = await api.get('/api/vehicle-status')
+    return data
+  },
+}
+
 export const systemAPI = {
   getStatus: async (): Promise<ServerStatus> => {
     const { data} = await api.get('/api/status')

@@ -191,3 +191,60 @@ export interface VideoPlayerState {
   fullscreen: boolean
   buffering: boolean
 }
+
+// ============================================================================
+// Troubleshoot
+// ============================================================================
+
+export interface VehicleFaults {
+  steerFaultTemporary: boolean
+  steerFaultPermanent: boolean
+  accFaulted: boolean
+  canTimeout: boolean
+  /** Inverted relative to the others: true is healthy. */
+  canValid: boolean
+}
+
+export interface VehicleStatus {
+  success?: boolean
+  /** False offroad, or when openpilot is not running. */
+  available: boolean
+  reason?: string
+  faults?: VehicleFaults
+  canErrorCounter?: number
+  cruise?: {
+    available: boolean
+    enabled: boolean
+    standstill: boolean
+    nonAdaptive: boolean
+  }
+  vEgo?: number
+  standstill?: boolean
+  gearShifter?: string
+  healthy?: boolean
+}
+
+export interface SettingsDiffItem {
+  key: string
+  title: string
+  panel: string
+  panelLabel: string
+  group: string
+  current: string | number | boolean | null
+  default: string | number | boolean | null
+  changed: boolean
+}
+
+export interface SettingsDiff {
+  available: boolean
+  reason?: string
+  items: SettingsDiffItem[]
+  changedCount: number
+  total?: number
+}
+
+export interface TroubleshootReport {
+  success?: boolean
+  settings: SettingsDiff
+  vehicle: VehicleStatus
+}

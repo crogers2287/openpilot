@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" role="img" aria-label="Blue Dragon">
+  <title>Blue Dragon</title>
+  <g transform="translate(0,11)">
+    <!-- swept crest: two bold spikes off the crown -->
+    <path fill="#7cc0ff" d="M47 29 L10 6 L24 27 L38 36 Z"/>
+    <path fill="#7cc0ff" d="M39 39 L7 27 L25 41 Z"/>
+    <!-- head: angular wedge, snout leading right, shallow open jaw -->
+    <path fill="#2f7ff0" d="M26 48 L46 28 L68 34 L92 50 L70 55 L80 63 L50 70 L30 62 Z"/>
+    <!-- eye -->
+    <path fill="#0b1220" d="M58 42 L68 45 L59 47 Z"/>
+  </g>
+</svg>

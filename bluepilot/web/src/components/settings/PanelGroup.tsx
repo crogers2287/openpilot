@@ -140,7 +140,12 @@ export function PanelGroup({ group, state, panelId }: PanelGroupProps) {
   return (
     <div className="panel-group">
       <div className="panel-group-header">
-        <h3 className="panel-group-title">{group.title}</h3>
+        <div className="panel-group-heading">
+          <h3 className="panel-group-title">{group.title}</h3>
+          {group.description && (
+            <p className="panel-group-desc">{group.description}</p>
+          )}
+        </div>
         {group.enableResetButton && resettableControls.length > 0 && (
           <Button
             variant="secondary"

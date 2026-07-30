@@ -1,6 +1,7 @@
 import { useLayoutEffect, useRef } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { useWebSocketStore } from '@/stores/useWebSocketStore'
+import { useSidebarStore } from '@/stores/useSidebarStore'
 import { Icon } from '@/components/common'
 import type { DeviceStatus } from '@/types'
 import './Header.css'
@@ -19,17 +20,18 @@ export const Header = ({
   const navigate = useNavigate()
   const location = useLocation()
   const { connected } = useWebSocketStore()
+  const toggleSidebar = useSidebarStore((s) => s.toggle)
   const isHome = location.pathname === '/'
   const isRoutesPage = location.pathname.startsWith('/routes')
   const headerRef = useRef<HTMLElement | null>(null)
 
   const getTitle = () => {
-    if (location.pathname === '/') return 'BluePilot'
+    if (location.pathname === '/') return 'Blue Dragon'
     if (isRoutesPage) return 'Routes'
     if (location.pathname.startsWith('/parameters')) return 'Parameters'
     if (location.pathname.startsWith('/logs')) return 'System Logs'
     if (location.pathname.startsWith('/settings')) return 'Settings'
-    return 'BluePilot'
+    return 'Blue Dragon'
   }
 
   const isParametersPage = location.pathname.startsWith('/parameters')
@@ -61,6 +63,17 @@ export const Header = ({
 
   return (
     <header className="header" ref={headerRef}>
+      {/* Opens the off-canvas nav drawer; hidden once the sidebar rail is
+          permanently visible (>=1024px, see Sidebar.css). */}
+      <button
+        className="icon-btn sidebar-toggle"
+        onClick={toggleSidebar}
+        title="Navigation"
+        aria-label="Open navigation"
+        type="button"
+      >
+        <Icon name="menu" size={24} />
+      </button>
       {!isHome && (
         <button
           className="icon-btn home-btn"

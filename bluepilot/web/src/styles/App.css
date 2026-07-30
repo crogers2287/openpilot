@@ -159,3 +159,33 @@ a:hover {
     opacity: 0.5;
   }
 }
+
+/* App shell: sidebar rail + content column.
+   #root is a flex column, so the shell takes the remaining height and lays the
+   rail beside the content. The rail is sticky rather than fixed, which leaves
+   body scrolling (and each view's sticky .header) untouched. */
+.app-shell {
+  display: flex;
+  align-items: flex-start;
+  flex: 1;
+  min-height: 0;
+}
+
+.app-content {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+/* The rail is permanent at >=1024px, so the header's drawer trigger is only
+   needed below that. */
+.sidebar-toggle {
+  display: inline-flex;
+}
+
+@media (min-width: 1024px) {
+  .sidebar-toggle {
+    display: none;
+  }
+}
