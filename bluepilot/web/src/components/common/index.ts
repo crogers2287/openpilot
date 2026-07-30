@@ -2,6 +2,7 @@
 export { BackToTop } from './BackToTop'
 export { Button } from './Button'
 export { Icon } from './Icon'
+export { QRCode } from './QRCode'
 export { LoadingSpinner } from './LoadingSpinner'
 export { Modal } from './Modal'
 export { InputDialog } from './InputDialog'

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Header } from '@/components/layout/Header'
-import { Icon, LoadingSpinner, Button } from '@/components/common'
+import { Icon, LoadingSpinner, Button, QRCode } from '@/components/common'
 import { tailscaleAPI } from '@/services/api'
 import { useToastStore } from '@/stores/useToastStore'
 import type { DeviceStatus, TailscaleStatus } from '@/types'
@@ -94,6 +94,13 @@ export const TailnetView = ({ deviceStatus }: TailnetViewProps) => {
   const connected = s?.backend_state === 'Running'
   const installing = s?.install?.running
 
+  // Same port the portal is being served on, but at the tailnet address, so the
+  // QR keeps working whether this page came from :8088 or a custom port.
+  const tailnetIp = s?.ips?.[0]
+  const portalUrl = tailnetIp
+    ? `${window.location.protocol}//${tailnetIp}${window.location.port ? `:${window.location.port}` : ''}`
+    : null
+
   return (
     <>
       <Header deviceStatus={deviceStatus} subtitle="Connect this device to your tailnet" />
@@ -114,12 +121,30 @@ export const TailnetView = ({ deviceStatus }: TailnetViewProps) => {
           </div>
 
           {connected && (
-            <dl className="tailnet-facts">
-              <div><dt>Address</dt><dd>{s?.ips?.[0] ?? '—'}</dd></div>
-              <div><dt>Name</dt><dd>{s?.hostname ?? '—'}</dd></div>
-              {s?.tailnet && <div><dt>Tailnet</dt><dd>{s.tailnet}</dd></div>}
-              <div><dt>Peers</dt><dd>{s?.peers ?? 0}</dd></div>
-            </dl>
+            <>
+              <dl className="tailnet-facts">
+                <div><dt>Address</dt><dd>{s?.ips?.[0] ?? '—'}</dd></div>
+                <div><dt>Name</dt><dd>{s?.hostname ?? '—'}</dd></div>
+                {s?.tailnet && <div><dt>Tailnet</dt><dd>{s.tailnet}</dd></div>}
+                <div><dt>Peers</dt><dd>{s?.peers ?? 0}</dd></div>
+              </dl>
+
+              {portalUrl && (
+                <div className="tailnet-reach">
+                  <div className="tailnet-qr-wrap tailnet-qr-small">
+                    <QRCode value={portalUrl} size={150} title="Portal address on the tailnet" />
+                  </div>
+                  <div>
+                    <h4>Reach this portal from anywhere</h4>
+                    <p className="tailnet-sub">
+                      Scan on any device that is on your tailnet to open this portal over the VPN.
+                      SSH works at the same address.
+                    </p>
+                    <code className="tailnet-code">{portalUrl}</code>
+                  </div>
+                </div>
+              )}
+            </>
           )}
         </section>
 
@@ -158,9 +183,13 @@ export const TailnetView = ({ deviceStatus }: TailnetViewProps) => {
             {s?.auth_url ? (
               <div className="tailnet-auth">
                 <p className="tailnet-sub">
-                  Open this link on your phone to add the device to your tailnet. This page updates
-                  itself once you have approved it.
+                  Scan this with the phone that is signed in to your tailnet, approve the device,
+                  and this page will switch to connected on its own.
                 </p>
+                <div className="tailnet-qr-wrap">
+                  <QRCode value={s.auth_url} size={240} title="Tailscale sign-in link" />
+                </div>
+                <p className="tailnet-sub tailnet-hint">Or open the link directly:</p>
                 <a className="tailnet-authlink" href={s.auth_url} target="_blank" rel="noreferrer">
                   {s.auth_url}
                 </a>
