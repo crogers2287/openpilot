@@ -92,7 +92,7 @@ def is_installed() -> bool:
 
 
 def _run(args: list[str], timeout: int = 30) -> tuple[int, str, str]:
-  """Run a tailscale CLI command. Never raises."""
+  """Run a command. Never raises."""
   try:
     p = subprocess.run(args, capture_output=True, text=True, timeout=timeout)
     return p.returncode, p.stdout.strip(), p.stderr.strip()
@@ -102,8 +102,40 @@ def _run(args: list[str], timeout: int = 30) -> tuple[int, str, str]:
     return 1, '', str(e)
 
 
+def _sudo(cmd: list[str]) -> list[str]:
+  """tailscaled needs CAP_NET_ADMIN to create a TUN interface, and its control
+  socket ends up root-owned, so both the daemon and the CLI go through sudo.
+  openpilot's launch scripts already rely on passwordless sudo on AGNOS.
+  -n so a sudo that unexpectedly wants a password fails fast instead of hanging
+  a request thread forever.
+  """
+  if os.geteuid() == 0:
+    return cmd
+  return ['sudo', '-n', *cmd]
+
+
 def _cli(*args: str, timeout: int = 30) -> tuple[int, str, str]:
-  return _run([str(TAILSCALE), '--socket', str(SOCKET), *args], timeout=timeout)
+  return _run(_sudo([str(TAILSCALE), '--socket', str(SOCKET), *args]), timeout=timeout)
+
+
+def _ensure_tun() -> bool:
+  """Make /dev/net/tun usable if we can, so tailscale runs in its normal
+  kernel-networking mode where inbound connections to local services (the
+  portal, sshd) work exactly as on any other machine.
+
+  Nothing else on the device uses TUN, so the module may simply not be loaded
+  and the device node may not exist. Loading a module and creating a node in
+  devtmpfs are both cheap and leave the read-only root untouched.
+  """
+  if Path('/dev/net/tun').exists():
+    return True
+  _run(_sudo(['modprobe', 'tun']), timeout=15)
+  if not Path('/dev/net').is_dir():
+    _run(_sudo(['mkdir', '-p', '/dev/net']), timeout=10)
+  if not Path('/dev/net/tun').exists():
+    _run(_sudo(['mknod', '/dev/net/tun', 'c', '10', '200']), timeout=10)
+    _run(_sudo(['chmod', '600', '/dev/net/tun']), timeout=10)
+  return Path('/dev/net/tun').exists()
 
 
 # ---------------------------------------------------------------- install
@@ -235,15 +267,16 @@ def start_daemon() -> tuple[bool, str]:
   cmd = [str(TAILSCALED),
          '--state', str(STATE_FILE),
          '--socket', str(SOCKET)]
-  # AGNOS may not expose /dev/net/tun. Userspace networking still gives full
-  # tailnet reachability (inbound is proxied to localhost services), it just
-  # can't act as a subnet router -- the right trade for a device like this.
-  if not _tun_available():
+  # Prefer real kernel networking: that is the ordinary Tailscale setup, where
+  # other tailnet devices reach the portal and sshd with no extra plumbing.
+  # Userspace networking is the fallback if this kernel has no TUN at all.
+  if not _ensure_tun():
+    logger.warning('tailscale: no /dev/net/tun, falling back to userspace networking')
     cmd += ['--tun', 'userspace-networking']
 
   try:
     log = open(DAEMON_LOG, 'ab')
-    subprocess.Popen(cmd, stdout=log, stderr=log, stdin=subprocess.DEVNULL,
+    subprocess.Popen(_sudo(cmd), stdout=log, stderr=log, stdin=subprocess.DEVNULL,
                      start_new_session=True)  # survive portal restarts
   except OSError as e:
     return False, f'could not start tailscaled: {e}'
@@ -260,15 +293,15 @@ def stop_daemon() -> tuple[bool, str]:
   pid = _daemon_pid()
   if pid is None:
     return True, 'not running'
-  try:
-    os.kill(pid, 15)
-    for _ in range(50):
-      if not daemon_running():
-        return True, 'stopped'
-      time.sleep(0.1)
-    return False, 'tailscaled did not exit'
-  except OSError as e:
-    return False, str(e)
+  # tailscaled runs as root, so signalling it goes through sudo too.
+  code, _out, err = _run(_sudo(['kill', str(pid)]), timeout=15)
+  if code != 0:
+    return False, err or 'could not signal tailscaled'
+  for _ in range(50):
+    if not daemon_running():
+      return True, 'stopped'
+    time.sleep(0.1)
+  return False, 'tailscaled did not exit'
 
 
 # ---------------------------------------------------------------- up/down

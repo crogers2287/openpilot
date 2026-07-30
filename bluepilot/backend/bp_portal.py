@@ -884,6 +884,11 @@ class WebRoutesHandler(BaseHTTPRequestHandler):
                     '/api/websocket_status',
                     '/api/drive-stats',
                     '/api/panels',
+                    # Tailnet setup is exactly what you want to do sitting in the
+                    # truck with the ignition on, and none of it touches the
+                    # driving path -- tailscaled is supervised by this process,
+                    # not the manager.
+                    '/api/tailscale',
                 ]
                 is_allowed_onroad = any(path.startswith(ep) for ep in allowed_onroad_prefixes)
 
